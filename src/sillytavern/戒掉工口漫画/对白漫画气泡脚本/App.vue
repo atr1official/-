@@ -175,6 +175,8 @@ type PersonaInfo = {
   avatarUrl: string | null;
 };
 
+const STRICT_DIALOGUE_LINE_RE = /^\[([^[\]\n:：]{1,24})\]\s*[：:]\s*(.+)$/;
+
 const SHIXIA_SMILE =
   'https://raw.githubusercontent.com/atr1official/atri_official/main/%E6%97%B6%E5%A4%8F%26%E6%A0%97%E5%8E%9F/%E6%97%B6%E5%A4%8Fsmile.png';
 const SHIXIA_SAD =
@@ -443,9 +445,7 @@ function parseDialogueLine(line: string): { speaker: string; displayName: string
     return null;
   }
 
-  // 支持 [名字]:、【名字】:、**名字**:、名字: 等格式
-  const bracketMatch = trimmed.match(/^(?:\[|【|\*\*)?([^\]】\n*]{1,24})(?:\]|】|\*\*)?\s*[：:]\s*(.+)$/);
-  const matched = bracketMatch;
+  const matched = trimmed.match(STRICT_DIALOGUE_LINE_RE);
   if (!matched) {
     return null;
   }
@@ -469,10 +469,7 @@ function parseDialogueLine(line: string): { speaker: string; displayName: string
 }
 
 function cleanupSpeaker(value: string): string {
-  return value
-    .replaceAll(/^\*\*|\*\*$/g, '')
-    .replaceAll(/^[[【(（「『]+|[\]】)）」』]+$/g, '')
-    .trim();
+  return value.trim();
 }
 
 function stripOuterQuotes(value: string): string {
@@ -516,24 +513,15 @@ function isLikelyDialogue(speaker: string, content: string): boolean {
     return false;
   }
 
+  if (speaker.includes('[') || speaker.includes(']') || speaker.includes('【') || speaker.includes('】')) {
+    return false;
+  }
+
   if (content.includes('current time') || content.includes('/system/') || content.includes('/系统/')) {
     return false;
   }
 
   if (/^[a-z_][a-z0-9_ -]*$/i.test(speaker) && !['user', 'USER'].includes(speaker)) {
-    return false;
-  }
-
-  if (
-    content.includes('<style') ||
-    content.includes('</style>') ||
-    content.includes('<details') ||
-    content.includes('</details>') ||
-    content.includes('::') ||
-    content.includes('{') ||
-    content.includes('}') ||
-    /(^|[\s(])var\(--/.test(content)
-  ) {
     return false;
   }
 
@@ -550,16 +538,19 @@ function isLikelyDialogue(speaker: string, content: string): boolean {
   }
 
   if (
-    content.includes('「') ||
-    content.includes('」') ||
-    content.includes('『') ||
-    content.includes('』') ||
-    /[，。！？…～~!?,]/.test(content)
+    content.includes('<style') ||
+    content.includes('</style>') ||
+    content.includes('<details') ||
+    content.includes('</details>') ||
+    content.includes('::') ||
+    content.includes('{') ||
+    content.includes('}') ||
+    /(^|[\s(])var\(--/.test(content)
   ) {
-    return true;
+    return false;
   }
 
-  return speaker.length <= 12 && content.length <= 80;
+  return true;
 }
 
 function getSpeakerType(speaker: string, userName: string, personaName: string): BubbleKind {
