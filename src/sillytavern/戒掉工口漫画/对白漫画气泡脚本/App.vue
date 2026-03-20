@@ -136,6 +136,7 @@
           <div class="status-card__vs">VS</div>
         </div>
       </div>
+      <div v-else-if="block.type === 'passthrough'" class="passthrough-block" v-html="block.html"></div>
       <div v-else class="narration-block" v-html="block.html"></div>
     </template>
   </div>
@@ -163,11 +164,16 @@ type NarrationBlock = {
   html: string;
 };
 
+type PassthroughBlock = {
+  type: 'passthrough';
+  html: string;
+};
+
 type StatusBlock = {
   type: 'status';
 };
 
-type RenderBlock = DialogueBlock | NarrationBlock | StatusBlock;
+type RenderBlock = DialogueBlock | NarrationBlock | PassthroughBlock | StatusBlock;
 
 type PersonaInfo = {
   personaName: string;
@@ -186,7 +192,14 @@ const KURIHARA_SMILE =
 const KURIHARA_SAD =
   'https://raw.githubusercontent.com/atr1official/atri_official/main/%E6%97%B6%E5%A4%8F%26%E6%A0%97%E5%8E%9F/%E6%A0%97%E5%8E%9Fsad.png';
 const OUTER_WRAPPER_RE = /^<([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?>\s*([\s\S]*?)\s*<\/\1>$/;
-const STANDALONE_TAG_LINE_RE = /^<\/?[A-Za-z][\w:-]*(?:\s+[^<>]*?)?\s*\/?>$/;
+const STANDALONE_TAG_LINE_RE = /^<\/?([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?\s*\/?>$/;
+const SINGLE_LINE_TAG_BLOCK_RE = /^<([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?>[\s\S]*<\/\1>$/;
+const SELF_CLOSING_TAG_RE = /^<([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?\s*\/>$/;
+const LEADING_TAG_RE = /^<([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?>/;
+const OPENING_TAG_RE = /^<([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?>$/;
+const CLOSING_TAG_RE = /^<\/([A-Za-z][\w:-]*)>$/;
+const CONTENT_WRAPPER_TAGS = new Set(['content', 'output', 'response', 'message', 'reply', 'answer', 'final', 'result', 'text', 'body']);
+const ALWAYS_PASSTHROUGH_TAGS = new Set(['image']);
 
 const NON_DIALOGUE_KEYS = new Set([
   "Atri's Voice",
@@ -321,7 +334,8 @@ const blocks = computed<RenderBlock[]>(() => {
     narrationBuffer = [];
   };
 
-  for (const rawLine of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
     if (containsStatusPlaceholder(rawLine)) {
       flushNarration();
 
@@ -333,6 +347,20 @@ const blocks = computed<RenderBlock[]>(() => {
 
       continue;
     }
+
+    const passthroughBlock = collectPassthroughBlock(lines, index);
+    if (passthroughBlock) {
+      flushNarration();
+      result.push({
+        type: 'passthrough',
+        html: context.during_streaming
+          ? fastFormat(passthroughBlock.content)
+          : formatAsDisplayedMessage(passthroughBlock.content, { message_id: context.message_id }),
+      });
+      index = passthroughBlock.nextIndex - 1;
+      continue;
+    }
+
     const parsed = parseDialogueLine(rawLine);
     if (!parsed) {
       narrationBuffer.push(rawLine);
@@ -407,7 +435,7 @@ function unwrapOuterContentWrappers(message: string): string {
     }
 
     const tagName = matched[1].toLowerCase();
-    if (tagName === 'status' || tagName === 'script' || tagName === 'style') {
+    if (!CONTENT_WRAPPER_TAGS.has(tagName)) {
       return result;
     }
 
@@ -427,10 +455,126 @@ function stripStandaloneWrapperLines(message: string): string {
       return true;
     }
 
-    return !STANDALONE_TAG_LINE_RE.test(trimmed);
+    const matched = trimmed.match(STANDALONE_TAG_LINE_RE);
+    return !matched || !CONTENT_WRAPPER_TAGS.has(matched[1].toLowerCase());
   });
 
   return filtered.join('\n').trim();
+}
+
+function collectPassthroughBlock(lines: string[], startIndex: number): { content: string; nextIndex: number } | null {
+  const firstLine = lines[startIndex];
+  if (!firstLine) {
+    return null;
+  }
+
+  const trimmed = firstLine.trim();
+  if (!trimmed || containsStatusPlaceholder(trimmed) || !trimmed.startsWith('<')) {
+    return null;
+  }
+
+  const selfClosing = trimmed.match(SELF_CLOSING_TAG_RE);
+  if (selfClosing && shouldPassthroughTag(selfClosing[1])) {
+    return { content: firstLine, nextIndex: startIndex + 1 };
+  }
+
+  const singleLine = trimmed.match(SINGLE_LINE_TAG_BLOCK_RE);
+  if (singleLine && shouldPassthroughTag(singleLine[1])) {
+    return { content: firstLine, nextIndex: startIndex + 1 };
+  }
+
+  const leadingTag = trimmed.match(LEADING_TAG_RE);
+  if (leadingTag && shouldPassthroughTag(leadingTag[1])) {
+    const tagName = leadingTag[1].toLowerCase();
+    const collected: string[] = [];
+    let depth = 0;
+
+    for (let index = startIndex; index < lines.length; index += 1) {
+      const line = lines[index];
+      const lineTrimmed = line.trim();
+      collected.push(line);
+      depth += countOpeningTagOccurrences(lineTrimmed, tagName);
+      depth -= countClosingTagOccurrences(lineTrimmed, tagName);
+
+      if (depth <= 0) {
+        return {
+          content: collected.join('\n'),
+          nextIndex: index + 1,
+        };
+      }
+    }
+
+    return {
+      content: collected.join('\n'),
+      nextIndex: lines.length,
+    };
+  }
+
+  const opening = trimmed.match(OPENING_TAG_RE);
+  if (!opening || !shouldPassthroughTag(opening[1])) {
+    return null;
+  }
+
+  const tagName = opening[1].toLowerCase();
+  const collected: string[] = [];
+  let depth = 0;
+
+  for (let index = startIndex; index < lines.length; index += 1) {
+    const line = lines[index];
+    const lineTrimmed = line.trim();
+    collected.push(line);
+
+    if (matchesOpeningTag(lineTrimmed, tagName)) {
+      depth += 1;
+    }
+
+    if (matchesClosingTag(lineTrimmed, tagName)) {
+      depth -= 1;
+      if (depth <= 0) {
+        return {
+          content: collected.join('\n'),
+          nextIndex: index + 1,
+        };
+      }
+    }
+  }
+
+  return {
+    content: collected.join('\n'),
+    nextIndex: lines.length,
+  };
+}
+
+function shouldPassthroughTag(tagName: string): boolean {
+  const normalized = tagName.toLowerCase();
+  return (
+    ALWAYS_PASSTHROUGH_TAGS.has(normalized) ||
+    (normalized !== 'status' && normalized !== 'think' && !CONTENT_WRAPPER_TAGS.has(normalized))
+  );
+}
+
+function matchesOpeningTag(line: string, tagName: string): boolean {
+  const matched = line.match(OPENING_TAG_RE);
+  return matched?.[1].toLowerCase() === tagName;
+}
+
+function matchesClosingTag(line: string, tagName: string): boolean {
+  const matched = line.match(CLOSING_TAG_RE);
+  return matched?.[1].toLowerCase() === tagName;
+}
+
+function countOpeningTagOccurrences(line: string, tagName: string): number {
+  const matches = line.match(new RegExp(`<${escapeRegExp(tagName)}(?:\\s+[^<>]*?)?>`, 'gi'));
+  return matches?.length ?? 0;
+}
+
+function countClosingTagOccurrences(line: string, tagName: string): number {
+  const matches = line.match(new RegExp(`</${escapeRegExp(tagName)}>`, 'gi'));
+  return matches?.length ?? 0;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function containsStatusPlaceholder(line: string): boolean {
@@ -819,6 +963,10 @@ function getAvatarUrl(kind: BubbleKind): string | null {
 
 .narration-block :deep(p) {
   margin: 0.5rem 0;
+}
+
+.passthrough-block {
+  margin: 0.25rem 0;
 }
 
 .status-card {
