@@ -19,6 +19,8 @@
         </div>
       </div>
 
+      <div v-else-if="block.type === 'status'" class="status-block" v-html="block.html"></div>
+
       <div v-else class="narration-block" v-html="block.html"></div>
     </template>
   </div>
@@ -45,7 +47,12 @@ type NarrationBlock = {
   html: string;
 };
 
-type RenderBlock = DialogueBlock | NarrationBlock;
+type StatusBlock = {
+  type: 'status';
+  html: string;
+};
+
+type RenderBlock = DialogueBlock | NarrationBlock | StatusBlock;
 
 type PersonaInfo = {
   personaName: string;
@@ -152,6 +159,19 @@ const blocks = computed<RenderBlock[]>(() => {
   };
 
   for (const rawLine of lines) {
+    if (containsStatusPlaceholder(rawLine)) {
+      flushNarration();
+
+      if (!context.during_streaming) {
+        result.push({
+          type: 'status',
+          html: formatAsDisplayedMessage(rawLine, { message_id: context.message_id }),
+        });
+      }
+
+      continue;
+    }
+
     const parsed = parseDialogueLine(rawLine);
     if (!parsed) {
       narrationBuffer.push(rawLine);
@@ -189,13 +209,21 @@ function getRenderableMessage(message: string): string {
     }
   }
 
-  const endMarkers = ['<StatusPlaceHolderImpl/>', '</content>', '<status>', '</status>'];
+  // Keep the status placeholder in the rendered message so Tavern regex replacement
+  // can still inject the status bar UI into the formatted HTML output.
+  result = result.replace(/<status>[\s\S]*?<\/status>/gi, '');
+
+  const endMarkers = ['</content>'];
   const endCandidates = endMarkers.map(marker => result.indexOf(marker)).filter(index => index !== -1);
   if (endCandidates.length > 0) {
     result = result.slice(0, Math.min(...endCandidates));
   }
 
   return result.trim();
+}
+
+function containsStatusPlaceholder(line: string): boolean {
+  return line.includes('<StatusPlaceHolderImpl/>');
 }
 
 function parseDialogueLine(line: string): { speaker: string; displayName: string; content: string } | null {
@@ -514,6 +542,14 @@ function getAvatarUrl(kind: BubbleKind): string | null {
 
 .narration-block :deep(p) {
   margin: 0.5rem 0;
+}
+
+.status-block {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.status-block :deep(body) {
+  margin: 0;
 }
 
 @media (max-width: 720px) {
