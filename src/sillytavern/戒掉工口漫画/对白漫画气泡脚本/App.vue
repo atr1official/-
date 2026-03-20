@@ -185,6 +185,8 @@ const KURIHARA_SMILE =
   'https://raw.githubusercontent.com/atr1official/atri_official/main/%E6%97%B6%E5%A4%8F%26%E6%A0%97%E5%8E%9F/%E6%A0%97%E5%8E%9Fsmile.png';
 const KURIHARA_SAD =
   'https://raw.githubusercontent.com/atr1official/atri_official/main/%E6%97%B6%E5%A4%8F%26%E6%A0%97%E5%8E%9F/%E6%A0%97%E5%8E%9Fsad.png';
+const OUTER_WRAPPER_RE = /^<([A-Za-z][\w:-]*)(?:\s+[^<>]*?)?>\s*([\s\S]*?)\s*<\/\1>$/;
+const STANDALONE_TAG_LINE_RE = /^<\/?[A-Za-z][\w:-]*(?:\s+[^<>]*?)?\s*\/?>$/;
 
 const NON_DIALOGUE_KEYS = new Set([
   "Atri's Voice",
@@ -358,19 +360,16 @@ const blocks = computed<RenderBlock[]>(() => {
 });
 
 function getRenderableMessage(message: string): string {
-  let result = message;
-  const startMarkers = ['</think>', '开始输出正文', '<content>'];
-  const startIndex = Math.max(...startMarkers.map(marker => result.indexOf(marker)));
-  if (startIndex !== -1) {
-    const matchedMarker = startMarkers.find(marker => result.indexOf(marker) === startIndex);
-    if (matchedMarker) {
-      result = result.slice(startIndex + matchedMarker.length);
-    }
-  }
+  let result = message.replaceAll('\r\n', '\n').trim();
+
+  result = stripThinkBlocks(result);
+  result = stripLeadingPrelude(result);
+  result = unwrapOuterContentWrappers(result);
 
   // Keep the status placeholder in the rendered message so Tavern regex replacement
   // can still inject the status bar UI into the formatted HTML output.
   result = result.replace(/<status>[\s\S]*?<\/status>/gi, '');
+  result = stripStandaloneWrapperLines(result);
 
   const endMarkers = ['</content>'];
   const endCandidates = endMarkers.map(marker => result.indexOf(marker)).filter(index => index !== -1);
@@ -379,6 +378,59 @@ function getRenderableMessage(message: string): string {
   }
 
   return result.trim();
+}
+
+function stripThinkBlocks(message: string): string {
+  return message.replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '').trim();
+}
+
+function stripLeadingPrelude(message: string): string {
+  const preludeMarkers = ['</think>', '开始输出正文'];
+
+  for (const marker of preludeMarkers) {
+    const markerIndex = message.indexOf(marker);
+    if (markerIndex !== -1) {
+      return message.slice(markerIndex + marker.length).trim();
+    }
+  }
+
+  return message;
+}
+
+function unwrapOuterContentWrappers(message: string): string {
+  let result = message.trim();
+
+  while (true) {
+    const matched = result.match(OUTER_WRAPPER_RE);
+    if (!matched) {
+      return result;
+    }
+
+    const tagName = matched[1].toLowerCase();
+    if (tagName === 'status' || tagName === 'script' || tagName === 'style') {
+      return result;
+    }
+
+    result = matched[2].trim();
+  }
+}
+
+function stripStandaloneWrapperLines(message: string): string {
+  const lines = message.split('\n');
+  const filtered = lines.filter(rawLine => {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      return true;
+    }
+
+    if (trimmed.includes('StatusPlaceHolderImpl')) {
+      return true;
+    }
+
+    return !STANDALONE_TAG_LINE_RE.test(trimmed);
+  });
+
+  return filtered.join('\n').trim();
 }
 
 function containsStatusPlaceholder(line: string): boolean {
