@@ -50,7 +50,25 @@ export function mountStreamingMessages(
   const { host = 'iframe', filter, prefix = uuidv4(), keep_last_n } = options;
 
   const states: Map<number, { app: App; data: Reactive<StreamingMessageContext>; destroy: () => void }> = new Map();
+  const rerender_timers: Map<number, number[]> = new Map();
   let has_stoped = false;
+
+  const clearRerenderTimers = (message_id: number) => {
+    rerender_timers.get(message_id)?.forEach(timer => clearTimeout(timer));
+    rerender_timers.delete(message_id);
+  };
+
+  const scheduleDelayedRerenders = (message_id: number) => {
+    clearRerenderTimers(message_id);
+    const timers = [250, 1000].map(delay =>
+      window.setTimeout(() => {
+        if (!has_stoped) {
+          renderOneMessage(message_id);
+        }
+      }, delay),
+    );
+    rerender_timers.set(message_id, timers);
+  };
 
   const destroyIfInvalid = (message_id: number): boolean => {
     const min_message_id = Number($('#chat > .mes').first().attr('mesid'));
@@ -99,6 +117,13 @@ export function mountStreamingMessages(
     }
 
     const $message_element = $(`.mes[mesid='${message_id}']`);
+    const isEditing = $message_element.find('#curEditTextarea').length > 0;
+    if (isEditing) {
+      $message_element.find('.mes_text').removeClass('hidden!');
+      $message_element.find('.TH-streaming').addClass('hidden!');
+      $message_element.find(`#${prefix}-${message_id}`).addClass('hidden!');
+      return;
+    }
 
     const $mes_text = $message_element.find('.mes_text').addClass('hidden!');
     $message_element.find('.TH-streaming').addClass('hidden!');
@@ -109,6 +134,9 @@ export function mountStreamingMessages(
       if (state) {
         state.data.message = message;
         state.data.during_streaming = Boolean(stream_message);
+        if (!stream_message) {
+          scheduleDelayedRerenders(message_id);
+        }
         return;
       }
     }
@@ -150,23 +178,27 @@ export function mountStreamingMessages(
       app.mount($host[0]);
     }
 
-    const observer = new MutationObserver(() => {
-      const $edit_textarea = $('#chat').find('#curEditTextarea');
-      if ($edit_textarea.parent().is($mes_text)) {
+    const syncEditState = () => {
+      const isEditing = $message_element.find('#curEditTextarea').length > 0;
+      if (isEditing) {
         $mes_text.removeClass('hidden!');
         $host.addClass('hidden!');
-      } else if ($edit_textarea.length === 0) {
+      } else {
         $mes_text.addClass('hidden!');
         $message_element.find('.TH-streaming').addClass('hidden!');
         $host.removeClass('hidden!');
       }
-    });
-    observer.observe($mes_text[0] as HTMLElement, { childList: true });
+    };
+
+    const observer = new MutationObserver(syncEditState);
+    observer.observe($message_element[0] as HTMLElement, { childList: true, subtree: true });
+    syncEditState();
 
     states.set(message_id, {
       app,
       data,
       destroy: () => {
+        clearRerenderTimers(message_id);
         $message_element.find('.TH-streaming').removeClass('hidden!');
         $mes_text.removeClass('hidden!');
 
@@ -219,6 +251,7 @@ export function mountStreamingMessages(
     message_id => {
       destroyAllInvalid();
       renderOneMessage(message_id);
+      scheduleDelayedRerenders(message_id);
     },
     true,
   );
@@ -227,6 +260,9 @@ export function mountStreamingMessages(
       destroyAllInvalid();
       states.get(message_id)?.destroy();
       renderOneMessage(message_id);
+      if (event === tavern_events.MESSAGE_EDITED) {
+        scheduleDelayedRerenders(message_id);
+      }
     }),
   );
   [tavern_events.MORE_MESSAGES_LOADED, tavern_events.MESSAGE_DELETED].forEach(event =>
@@ -245,6 +281,7 @@ export function mountStreamingMessages(
     unmount: () => {
       $('#chat').find('.TH-streaming').removeClass('hidden!');
       $('#chat').find('.mes_text').removeClass('hidden!');
+      rerender_timers.forEach((_, message_id) => clearRerenderTimers(message_id));
       states.forEach(({ destroy }) => destroy());
       stop_list.forEach(stop => stop());
       has_stoped = true;

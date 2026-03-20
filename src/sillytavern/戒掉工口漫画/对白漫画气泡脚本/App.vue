@@ -19,8 +19,123 @@
         </div>
       </div>
 
-      <div v-else-if="block.type === 'status'" class="status-block" v-html="block.html"></div>
+      <div v-else-if="block.type === 'status'" class="status-card">
+        <div class="status-card__header">
+          <div class="status-card__datetime">{{ statusData.系统.日期 }} {{ statusData.系统.时间 }}</div>
+          <div class="status-card__divider"></div>
+          <div v-if="typeof statusData.系统.当前地点 === 'object'" class="status-card__locations">
+            <span><span class="status-card__label status-card__label--shixia">时夏:</span> {{ statusData.系统.当前地点.时夏 }}</span>
+            <span
+              ><span class="status-card__label status-card__label--kurihara">栗原:</span>
+              {{ statusData.系统.当前地点.栗原 }}</span
+            >
+            <span><span class="status-card__label status-card__label--user">你:</span> {{ statusUserLocation }}</span>
+          </div>
+          <div v-else class="status-card__pending">地点待初始化</div>
+        </div>
 
+        <div class="status-card__body">
+          <div class="status-card__panel status-card__panel--shixia">
+            <div class="status-card__backdrop">
+              <img :src="statusShixiaImage" class="status-card__backdrop-image" alt="" />
+            </div>
+            <div class="status-card__portrait">
+              <img :src="statusShixiaImage" class="status-card__portrait-image" alt="时夏" />
+            </div>
+            <div class="status-card__overlay"></div>
+
+            <div class="status-card__content status-card__content--left">
+              <div class="status-card__title-row">
+                <div class="status-card__title status-card__title--shixia">时夏</div>
+                <div class="status-card__stats">
+                  <div class="status-card__meter">
+                    <div class="status-card__meter-head">
+                      <span>爱意隐藏值</span>
+                      <span>{{ statusData.时夏.爱隐藏值 }} / 200</span>
+                    </div>
+                    <div class="status-card__meter-track status-card__meter-track--shixia">
+                      <div
+                        class="status-card__meter-fill status-card__meter-fill--shixia"
+                        :style="{ width: `${(statusData.时夏.爱隐藏值 / 200) * 100}%` }"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div class="status-card__counter status-card__counter--shixia">
+                    <span class="status-card__counter-label">做爱次数</span>
+                    <span class="status-card__counter-value">{{ statusData.时夏.做爱次数 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="status-card__thought-list">
+                <div class="status-card__thought status-card__thought--shixia">
+                  <div class="status-card__thought-title">对你的内心话</div>
+                  <div class="status-card__thought-text">"{{ statusShixiaThoughts }}"</div>
+                </div>
+
+                <div class="status-card__thought status-card__thought--neutral">
+                  <div class="status-card__thought-title">对栗原</div>
+                  <div class="status-card__thought-text status-card__thought-text--muted">
+                    "{{ statusData.时夏.对栗原 }}"
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-card__panel status-card__panel--kurihara">
+            <div class="status-card__backdrop">
+              <img :src="statusKuriharaImage" class="status-card__backdrop-image" alt="" />
+            </div>
+            <div class="status-card__portrait">
+              <img :src="statusKuriharaImage" class="status-card__portrait-image" alt="栗原" />
+            </div>
+            <div class="status-card__overlay"></div>
+
+            <div class="status-card__content status-card__content--right">
+              <div class="status-card__title-row">
+                <div class="status-card__title status-card__title--kurihara">栗原</div>
+                <div class="status-card__stats">
+                  <div class="status-card__meter">
+                    <div class="status-card__meter-head">
+                      <span>灰心度</span>
+                      <span>{{ statusData.栗原.灰心度 }} / 200</span>
+                    </div>
+                    <div class="status-card__meter-track status-card__meter-track--kurihara">
+                      <div
+                        class="status-card__meter-fill status-card__meter-fill--kurihara"
+                        :style="{ width: `${(statusData.栗原.灰心度 / 200) * 100}%` }"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div class="status-card__counter status-card__counter--kurihara">
+                    <span class="status-card__counter-label">做爱次数</span>
+                    <span class="status-card__counter-value">{{ statusData.栗原.做爱次数 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="status-card__thought-list">
+                <div class="status-card__thought status-card__thought--kurihara">
+                  <div class="status-card__thought-title">对你的心理话</div>
+                  <div class="status-card__thought-text">"{{ statusKuriharaThoughts }}"</div>
+                </div>
+
+                <div class="status-card__thought status-card__thought--neutral">
+                  <div class="status-card__thought-title">对时夏</div>
+                  <div class="status-card__thought-text status-card__thought-text--muted">
+                    "{{ statusData.栗原.对时夏 }}"
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-card__vs">VS</div>
+        </div>
+      </div>
       <div v-else class="narration-block" v-html="block.html"></div>
     </template>
   </div>
@@ -28,6 +143,7 @@
 
 <script setup lang="ts">
 import { injectStreamingMessageContext } from '@util/streaming';
+import { Schema } from '../schema';
 
 type BubbleKind = 'shixia' | 'kurihara' | 'user' | 'other';
 type BubbleSide = 'left' | 'right';
@@ -49,7 +165,6 @@ type NarrationBlock = {
 
 type StatusBlock = {
   type: 'status';
-  html: string;
 };
 
 type RenderBlock = DialogueBlock | NarrationBlock | StatusBlock;
@@ -75,6 +190,8 @@ const NON_DIALOGUE_KEYS = new Set([
   "Atri's Note",
   "Deach's Note",
   'time',
+  'time passed',
+  'dramatic updates',
   'scene',
   'stat_data',
   '日期',
@@ -127,8 +244,50 @@ const choices = computed(() => {
   };
 });
 
+const statusData = ref(getNormalizedStatusData());
+
+useIntervalFn(() => {
+  const next = getNormalizedStatusData();
+  if (!_.isEqual(statusData.value, next)) {
+    statusData.value = next;
+  }
+}, 2000);
+
+const statusUserLocation = computed(() => {
+  const location = statusData.value.系统.当前地点;
+  return typeof location === 'object' ? location['{{user}}'] : '';
+});
+
+const statusShixiaThoughts = computed(() => statusData.value.时夏['对{{user}}的内心话']);
+const statusKuriharaThoughts = computed(() => statusData.value.栗原['对{{user}}的心理话']);
+
+const statusShixiaImage = computed(() => {
+  if (statusData.value['{{user}}的选择'].时夏) {
+    return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/时夏.png';
+  }
+
+  if (statusData.value['{{user}}的选择'].栗原) {
+    return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/时夏leave.png';
+  }
+
+  return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/时夏normal.png';
+});
+
+const statusKuriharaImage = computed(() => {
+  if (statusData.value['{{user}}的选择'].时夏) {
+    return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/栗原leave.png';
+  }
+
+  if (statusData.value['{{user}}的选择'].栗原) {
+    return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/栗原.png';
+  }
+
+  return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/栗原normal.png';
+});
+
 const blocks = computed<RenderBlock[]>(() => {
-  const lines = getRenderableMessage(context.message).replaceAll('\r\n', '\n').split('\n');
+  const renderableMessage = getRenderableMessage(context.message);
+  const lines = renderableMessage.replaceAll('\r\n', '\n').split('\n');
   const result: RenderBlock[] = [];
   let narrationBuffer: string[] = [];
 
@@ -165,13 +324,11 @@ const blocks = computed<RenderBlock[]>(() => {
       if (!context.during_streaming) {
         result.push({
           type: 'status',
-          html: formatAsDisplayedMessage(rawLine, { message_id: context.message_id }),
         });
       }
 
       continue;
     }
-
     const parsed = parseDialogueLine(rawLine);
     if (!parsed) {
       narrationBuffer.push(rawLine);
@@ -224,6 +381,60 @@ function getRenderableMessage(message: string): string {
 
 function containsStatusPlaceholder(line: string): boolean {
   return line.includes('<StatusPlaceHolderImpl/>');
+}
+
+function getNormalizedStatusData() {
+  const statData = _.get(getVariables({ type: 'message', message_id: context.message_id }), 'stat_data', {});
+  const normalized = _.cloneDeep(statData);
+
+  const possibleUserKeys = _.uniq(['{{user}}', 'user', persona.value.userName].filter(Boolean));
+
+  const currentLocation = _.get(normalized, '系统.当前地点');
+  if (_.isPlainObject(currentLocation)) {
+    const userLocation = getFirstExistingValue(currentLocation, possibleUserKeys);
+    if (userLocation !== undefined) {
+      _.set(normalized, '系统.当前地点.{{user}}', userLocation);
+    }
+  }
+
+  const shixiaThought = getFirstExistingValue(_.get(normalized, '时夏', {}), [
+    '对{{user}}的内心话',
+    '对user的内心话',
+    `对${persona.value.userName}的内心话`,
+  ]);
+  if (shixiaThought !== undefined) {
+    _.set(normalized, '时夏.对{{user}}的内心话', shixiaThought);
+  }
+
+  const kuriharaThought = getFirstExistingValue(_.get(normalized, '栗原', {}), [
+    '对{{user}}的心理话',
+    '对user的心理话',
+    `对${persona.value.userName}的心理话`,
+  ]);
+  if (kuriharaThought !== undefined) {
+    _.set(normalized, '栗原.对{{user}}的心理话', kuriharaThought);
+  }
+
+  const choice = getFirstExistingValue(normalized, ['{{user}}的选择', 'user的选择', `${persona.value.userName}的选择`]);
+  if (_.isPlainObject(choice)) {
+    _.set(normalized, '{{user}}的选择', choice);
+  }
+
+  return Schema.parse(normalized);
+}
+
+function getFirstExistingValue(source: unknown, keys: string[]) {
+  if (!_.isPlainObject(source)) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      return (source as Record<string, unknown>)[key];
+    }
+  }
+
+  return undefined;
 }
 
 function parseDialogueLine(line: string): { speaker: string; displayName: string; content: string } | null {
@@ -282,7 +493,30 @@ function isLikelyDialogue(speaker: string, content: string): boolean {
     return false;
   }
 
+  const normalizedSpeaker = speaker.trim().toLowerCase();
+  if (
+    normalizedSpeaker === 'date' ||
+    normalizedSpeaker === 'time' ||
+    normalizedSpeaker === 'time passed' ||
+    normalizedSpeaker === 'dramatic updates' ||
+    normalizedSpeaker === 'location' ||
+    normalizedSpeaker === 'current location' ||
+    normalizedSpeaker.startsWith('- ') ||
+    normalizedSpeaker.startsWith('/system') ||
+    normalizedSpeaker.startsWith('system/') ||
+    normalizedSpeaker.startsWith('/系统') ||
+    normalizedSpeaker.includes('日期') ||
+    normalizedSpeaker.includes('时间') ||
+    normalizedSpeaker.includes('当前地点')
+  ) {
+    return false;
+  }
+
   if (/[<>]/.test(speaker) || speaker.includes('/') || speaker.includes('.') || speaker.startsWith('--')) {
+    return false;
+  }
+
+  if (content.includes('current time') || content.includes('/system/') || content.includes('/系统/')) {
     return false;
   }
 
@@ -544,15 +778,385 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   margin: 0.5rem 0;
 }
 
-.status-block {
+.status-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
   margin: 0.25rem 0 0.75rem;
+  padding: 1rem;
+  border: 4px solid #000;
+  border-radius: 1rem;
+  background:
+    radial-gradient(#333 2px, transparent 2px),
+    #111827;
+  background-size: 12px 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
 }
 
-.status-block :deep(body) {
-  margin: 0;
+.status-card__body {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
 }
 
+.status-card__header {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.45rem 1.1rem;
+  border: 2px solid #000;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 2px 2px 0 #000;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.status-card__datetime {
+  color: #2563eb;
+  letter-spacing: 0.03em;
+}
+
+.status-card__divider {
+  width: 1px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.status-card__locations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: #1f2937;
+}
+
+.status-card__label {
+  font-weight: 900;
+}
+
+.status-card__label--shixia {
+  color: #2563eb;
+}
+
+.status-card__label--kurihara {
+  color: #ca8a04;
+}
+
+.status-card__label--user {
+  color: #16a34a;
+}
+
+.status-card__pending {
+  color: #6b7280;
+}
+
+.status-card__panel {
+  position: relative;
+  overflow: hidden;
+  min-height: 26rem;
+  border: 4px solid #000;
+  border-radius: 1rem;
+  background: #000;
+  box-shadow: 4px 4px 0 #000;
+}
+
+.status-card__backdrop,
+.status-card__portrait,
+.status-card__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.status-card__backdrop {
+  opacity: 0.4;
+  filter: blur(12px);
+}
+
+.status-card__backdrop-image,
+.status-card__portrait-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.status-card__portrait {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0.2rem 0.5rem 0;
+}
+
+.status-card__portrait-image {
+  object-fit: contain;
+  object-position: center top;
+  transform: translateY(-1.6rem) scale(1.04);
+  transform-origin: center top;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.55));
+}
+
+.status-card__overlay {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.68), rgba(0, 0, 0, 0.18), transparent);
+}
+
+.status-card__content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 68%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 0.2rem;
+}
+
+.status-card__content--left {
+  align-items: flex-start;
+}
+
+.status-card__content--right {
+  align-items: flex-end;
+}
+
+.status-card__title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.status-card__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  width: min(50%, 12.5rem);
+}
+
+.status-card__title {
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.status-card__title--shixia {
+  color: rgba(96, 165, 250, 0.92);
+}
+
+.status-card__title--kurihara {
+  color: rgba(250, 204, 21, 0.92);
+}
+
+.status-card__meter-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.status-card__meter-track {
+  overflow: hidden;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.5);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.status-card__meter-track--shixia {
+  border: 1px solid rgba(30, 64, 175, 0.45);
+}
+
+.status-card__meter-track--kurihara {
+  border: 1px solid rgba(133, 77, 14, 0.45);
+}
+
+.status-card__meter-fill {
+  height: 100%;
+}
+
+.status-card__meter-fill--shixia {
+  background: linear-gradient(to right, rgba(37, 99, 235, 0.82), rgba(96, 165, 250, 0.82));
+}
+
+.status-card__meter-fill--kurihara {
+  background: linear-gradient(to right, rgba(202, 138, 4, 0.82), rgba(250, 204, 21, 0.82));
+}
+
+.status-card__counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: flex-end;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.18rem 0.48rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(3px);
+}
+
+.status-card__counter--shixia {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.status-card__counter--kurihara {
+  border-color: rgba(250, 204, 21, 0.3);
+}
+
+.status-card__counter-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.status-card__counter-value {
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.status-card__thought-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.65rem;
+}
+
+.status-card__thought {
+  padding: 0.6rem 0.75rem;
+  border-left: 4px solid rgba(156, 163, 175, 0.75);
+  border-radius: 0.45rem;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(4px);
+}
+
+.status-card__thought--shixia {
+  border-left-color: rgba(59, 130, 246, 0.82);
+}
+
+.status-card__thought--kurihara {
+  border-left-color: rgba(234, 179, 8, 0.82);
+}
+
+.status-card__thought-title {
+  margin-bottom: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.status-card__thought-text {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.status-card__thought-text--muted {
+  color: rgba(255, 255, 255, 0.72);
+  font-style: normal;
+}
+
+.status-card__vs {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  padding: 0.32rem 0.62rem;
+  border: 4px solid #000;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  font-size: clamp(1.15rem, 3vw, 1.55rem);
+  font-style: italic;
+  font-weight: 900;
+  box-shadow: 4px 4px 0 #000;
+}
 @media (max-width: 720px) {
+  .status-card__body {
+    grid-template-columns: 1fr;
+  }
+
+  .status-card {
+    padding: 0.85rem;
+  }
+
+  .status-card__header {
+    white-space: normal;
+  }
+
+  .status-card__divider {
+    display: none;
+  }
+
+  .status-card__locations {
+    justify-content: center;
+  }
+
+  .status-card__panel {
+    min-height: 21rem;
+  }
+
+  .status-card__content {
+    top: 58%;
+    padding: 0.85rem 0.85rem 0.2rem;
+  }
+
+  .status-card__portrait-image {
+    transform: translateY(-0.9rem) scale(1.02);
+  }
+
+  .status-card__title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .status-card__content--right .status-card__title-row {
+    align-items: flex-end;
+  }
+
+  .status-card__stats {
+    width: 100%;
+  }
+
+  .status-card__counter {
+    align-self: flex-start;
+  }
+
+  .status-card__content--right .status-card__counter {
+    align-self: flex-end;
+  }
+
+  .status-card__vs {
+    top: auto;
+    bottom: calc(50% - 1.1rem);
+  }
+
   .bubble-row {
     gap: 0.5rem;
   }
