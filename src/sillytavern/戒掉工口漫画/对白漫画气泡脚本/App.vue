@@ -1054,7 +1054,7 @@ function getAvatarUrl(kind: BubbleKind): string | null {
 .status-card__panel {
   position: relative;
   overflow: clip;
-  min-height: 36rem;
+  min-height: 38rem;
   border: 4px solid #000;
   border-radius: 1rem;
   background: #000;
@@ -1340,7 +1340,7 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   }
 
   .status-card__panel {
-    min-height: 26rem;
+    min-height: 27rem;
   }
 
   .status-card__content {
