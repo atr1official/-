@@ -1053,7 +1053,9 @@ function getAvatarUrl(kind: BubbleKind): string | null {
 
 .status-card__panel {
   position: relative;
+  min-width: 0;
   overflow: clip;
+  overflow: hidden;
   min-height: 38rem;
   border: 4px solid #000;
   border-radius: 1rem;
@@ -1110,11 +1112,30 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   flex-direction: column;
   justify-content: flex-start;
   gap: 0.85rem;
-  min-height: 15rem;
-  max-height: 62%;
+  min-height: 20rem;
+  height: 20rem;
+  max-height: 20rem;
   padding: 0.9rem 0.95rem 0.85rem;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.06);
   background: linear-gradient(to top, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.94) 78%, rgba(2, 6, 23, 0.08));
+}
+
+.status-card__content::-webkit-scrollbar {
+  width: 0.45rem;
+}
+
+.status-card__content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.status-card__content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .status-card__content--left {
@@ -1126,27 +1147,34 @@ function getAvatarUrl(kind: BubbleKind): string | null {
 }
 
 .status-card__title-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8.75rem, 10.5rem);
   align-items: flex-end;
-  justify-content: space-between;
   gap: 0.65rem;
   width: 100%;
   flex: 0 0 auto;
+  min-width: 0;
 }
 
 .status-card__stats {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  justify-self: end;
+  flex: 0 0 10.5rem;
   gap: 0.24rem;
-  width: min(42%, 10.5rem);
+  width: 10.5rem;
+  min-width: 8.75rem;
 }
 
 .status-card__title {
+  min-width: 0;
   font-size: clamp(1.58rem, 3.5vw, 2.1rem);
   font-weight: 900;
   font-style: italic;
   letter-spacing: 0.08em;
+  line-height: 0.95;
+  text-wrap: nowrap;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
@@ -1240,13 +1268,10 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   gap: 0.65rem;
   width: 100%;
   margin-top: 0.15rem;
-  padding-right: 0.2rem;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  padding-right: 0.35rem;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 .status-card__thought {
@@ -1257,19 +1282,7 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(4px);
   overflow: hidden;
-}
-
-.status-card__thought-list::-webkit-scrollbar {
-  width: 0.35rem;
-}
-
-.status-card__thought-list::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.24);
-}
-
-.status-card__thought-list::-webkit-scrollbar-track {
-  background: transparent;
+  flex: 0 0 auto;
 }
 
 .status-card__thought--shixia {
@@ -1344,8 +1357,9 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   }
 
   .status-card__content {
-    min-height: 12rem;
-    max-height: 60%;
+    min-height: 15rem;
+    height: 15rem;
+    max-height: 15rem;
     padding: 0.95rem 0.85rem 0.65rem;
   }
 
@@ -1354,6 +1368,7 @@ function getAvatarUrl(kind: BubbleKind): string | null {
   }
 
   .status-card__title-row {
+    display: flex;
     flex-direction: column;
     align-items: flex-start;
   }
@@ -1364,6 +1379,7 @@ function getAvatarUrl(kind: BubbleKind): string | null {
 
   .status-card__stats {
     width: 100%;
+    min-width: 0;
   }
 
   .status-card__counter {
