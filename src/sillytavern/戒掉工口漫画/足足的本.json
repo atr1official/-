@@ -59,7 +59,8 @@ void (async () => {
 
       if (!Number.isFinite(oldValue) || !Number.isFinite(newValue)) return;
 
-      _.set(new_variables, `stat_data.${path}`, _.clamp(newValue, oldValue - limit, oldValue + limit));
+      const deltaClampedValue = _.clamp(newValue, oldValue - limit, oldValue + limit);
+      _.set(new_variables, `stat_data.${path}`, _.clamp(deltaClampedValue, 0, 200));
     };
 
     clampDelta('时夏.爱隐藏值', 8);
