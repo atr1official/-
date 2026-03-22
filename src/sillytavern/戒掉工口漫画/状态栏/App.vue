@@ -1,27 +1,49 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
-import { useDataStore } from './store';
+const FALLBACK_TEXT = '待初始化';
 
-const store = useDataStore();
-const { data } = storeToRefs(store);
+const topLevelKeys = {
+  system: ['系统', '绯荤粺'],
+  shixia: ['时夏', '鏃跺'],
+  kurihara: ['栗原', '鏍楀師'],
+  choice: ['{{user}}的选择', '{{user}}鐨勯€夋嫨', 'user的选择', 'user鐨勯€夋嫨'],
+} as const;
 
-const userLocation = computed(() => {
-  const location = data.value.系统.当前地点;
-  return typeof location === 'object' ? location['{{user}}'] : '';
+const fieldKeys = {
+  date: ['日期', '鏃ユ湡'],
+  time: ['时间', '鏃堕棿'],
+  currentLocation: ['当前地点', '褰撳墠鍦扮偣'],
+  loveHiddenRate: ['爱隐藏值', '鐖遍殣钘忓€?'],
+  discouragementRate: ['灰心度', '鐏板績搴?'],
+  sexCount: ['做爱次数', '鍋氱埍娆℃暟'],
+  shixiaToKurihara: ['对栗原', '瀵规牀鍘?'],
+  kuriharaToShixia: ['对时夏', '瀵规椂澶?'],
+  shixiaThought: ['对{{user}}的内心话', '瀵箊{{user}}鐨勫唴蹇冭瘽', '瀵箊{user}}鐨勫唴蹇冭瘽', '瀵箄ser鐨勫唴蹇冭瘽'],
+  kuriharaThought: ['对{{user}}的心理话', '瀵箊{{user}}鐨勫績鐞嗚瘽', '瀵箊{user}}鐨勫績鐞嗚瘽', '瀵箄ser鐨勫績鐞嗚瘽'],
+} as const;
+
+const tick = ref(0);
+
+useIntervalFn(() => {
+  tick.value += 1;
+}, 2000);
+
+const statusData = computed(() => {
+  tick.value;
+  return getNormalizedStatusData();
 });
 
-const shixiaInnerThoughts = computed(() => data.value.时夏['对{{user}}的内心话']);
-const liyuanInnerThoughts = computed(() => data.value.栗原['对{{user}}的心理话']);
-const shixiaLoveHiddenRate = computed(() => _.clamp(data.value.时夏.爱隐藏值, 0, 200));
-const liyuanDiscouragementRate = computed(() => _.clamp(data.value.栗原.灰心度, 0, 200));
+const userLocation = computed(() => statusData.value.系统.当前地点['{{user}}']);
+const shixiaInnerThoughts = computed(() => statusData.value.时夏['对{{user}}的内心话']);
+const liyuanInnerThoughts = computed(() => statusData.value.栗原['对{{user}}的心理话']);
+const shixiaLoveHiddenRate = computed(() => _.clamp(statusData.value.时夏.爱隐藏值, 0, 200));
+const liyuanDiscouragementRate = computed(() => _.clamp(statusData.value.栗原.灰心度, 0, 200));
 
 const shixiaImage = computed(() => {
-  if (data.value['{{user}}的选择'].时夏) {
+  if (statusData.value['{{user}}的选择'].时夏) {
     return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/时夏.png';
   }
 
-  if (data.value['{{user}}的选择'].栗原) {
+  if (statusData.value['{{user}}的选择'].栗原) {
     return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/时夏leave.png';
   }
 
@@ -29,34 +51,140 @@ const shixiaImage = computed(() => {
 });
 
 const liyuanImage = computed(() => {
-  if (data.value['{{user}}的选择'].时夏) {
+  if (statusData.value['{{user}}的选择'].时夏) {
     return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/栗原leave.png';
   }
 
-  if (data.value['{{user}}的选择'].栗原) {
+  if (statusData.value['{{user}}的选择'].栗原) {
     return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/栗原.png';
   }
 
   return 'https://raw.githubusercontent.com/atr1official/atri_official/main/时夏&栗原/栗原normal.png';
 });
+
+function getNormalizedStatusData() {
+  const messageId = getCurrentMessageId();
+  const statData = _.cloneDeep(_.get(getVariables({ type: 'message', message_id: messageId }), 'stat_data', {}));
+  const userName = String((SillyTavern as any).getContext?.()?.name1 ?? '').trim();
+
+  const systemSource = getFirstObject(statData, topLevelKeys.system);
+  const shixiaSource = getFirstObject(statData, topLevelKeys.shixia);
+  const kuriharaSource = getFirstObject(statData, topLevelKeys.kurihara);
+  const choiceSource = getFirstObject(statData, topLevelKeys.choice);
+  const locationSource = getFirstObject(systemSource, fieldKeys.currentLocation);
+
+  const possibleUserKeys = _.uniq(['{{user}}', userName, 'user'].filter(Boolean));
+
+  return {
+    系统: {
+      日期: getFirstString(systemSource, fieldKeys.date),
+      时间: getFirstString(systemSource, fieldKeys.time),
+      当前地点: {
+        时夏: getFirstString(locationSource, topLevelKeys.shixia),
+        栗原: getFirstString(locationSource, topLevelKeys.kurihara),
+        '{{user}}': getFirstString(locationSource, possibleUserKeys),
+      },
+    },
+    时夏: {
+      爱隐藏值: getFirstNumber(shixiaSource, fieldKeys.loveHiddenRate, 200),
+      做爱次数: getFirstNumber(shixiaSource, fieldKeys.sexCount, 0),
+      对栗原: getFirstString(shixiaSource, fieldKeys.shixiaToKurihara),
+      '对{{user}}的内心话': getFirstString(shixiaSource, [
+        ...fieldKeys.shixiaThought,
+        ...(userName ? [`对${userName}的内心话`] : []),
+      ]),
+    },
+    栗原: {
+      灰心度: getFirstNumber(kuriharaSource, fieldKeys.discouragementRate, 0),
+      做爱次数: getFirstNumber(kuriharaSource, fieldKeys.sexCount, 0),
+      对时夏: getFirstString(kuriharaSource, fieldKeys.kuriharaToShixia),
+      '对{{user}}的心理话': getFirstString(kuriharaSource, [
+        ...fieldKeys.kuriharaThought,
+        ...(userName ? [`对${userName}的心理话`] : []),
+      ]),
+    },
+    '{{user}}的选择': {
+      时夏: getFirstBoolean(choiceSource, topLevelKeys.shixia),
+      栗原: getFirstBoolean(choiceSource, topLevelKeys.kurihara),
+    },
+  };
+}
+
+function getFirstObject(source: unknown, keys: readonly string[]) {
+  if (!_.isPlainObject(source)) {
+    return {};
+  }
+
+  for (const key of keys) {
+    const value = (source as Record<string, unknown>)[key];
+    if (_.isPlainObject(value)) {
+      return value;
+    }
+  }
+
+  return {};
+}
+
+function getFirstString(source: unknown, keys: readonly string[]) {
+  if (!_.isPlainObject(source)) {
+    return FALLBACK_TEXT;
+  }
+
+  for (const key of keys) {
+    const value = (source as Record<string, unknown>)[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+
+  return FALLBACK_TEXT;
+}
+
+function getFirstNumber(source: unknown, keys: readonly string[], fallback: number) {
+  if (!_.isPlainObject(source)) {
+    return fallback;
+  }
+
+  for (const key of keys) {
+    const value = Number((source as Record<string, unknown>)[key]);
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function getFirstBoolean(source: unknown, keys: readonly string[]) {
+  if (!_.isPlainObject(source)) {
+    return false;
+  }
+
+  for (const key of keys) {
+    if ((source as Record<string, unknown>)[key] === true) {
+      return true;
+    }
+  }
+
+  return false;
+}
 </script>
 
 <template>
   <div
-    class="relative mt-4 flex w-full select-none flex-col gap-4 rounded-xl border-4 border-black bg-gray-900 p-4 font-sans shadow-2xl md:gap-8 md:p-5 md:flex-row"
+    class="relative mt-4 flex w-full select-none flex-col gap-4 rounded-xl border-4 border-black bg-gray-900 p-4 font-sans shadow-2xl md:flex-row md:gap-8 md:p-5"
     style="background-image: radial-gradient(#333 2px, transparent 2px); background-size: 12px 12px"
   >
     <div
       class="absolute -top-4 left-1/2 z-30 flex -translate-x-1/2 transform gap-4 rounded-full border-2 border-black bg-white px-5 py-1.5 text-xs font-bold whitespace-nowrap shadow-[2px_2px_0px_rgba(0,0,0,1)]"
     >
-      <div class="tracking-wide text-blue-600">{{ data.系统.日期 }} {{ data.系统.时间 }}</div>
+      <div class="tracking-wide text-blue-600">{{ statusData.系统.日期 }} {{ statusData.系统.时间 }}</div>
       <div class="w-px bg-black/30"></div>
-      <div v-if="typeof data.系统.当前地点 === 'object'" class="flex gap-4 text-gray-800">
-        <span><span class="text-blue-600">时夏:</span> {{ data.系统.当前地点.时夏 }}</span>
-        <span><span class="text-yellow-600">栗原:</span> {{ data.系统.当前地点.栗原 }}</span>
+      <div class="flex gap-4 text-gray-800">
+        <span><span class="text-blue-600">时夏:</span> {{ statusData.系统.当前地点.时夏 }}</span>
+        <span><span class="text-yellow-600">栗原:</span> {{ statusData.系统.当前地点.栗原 }}</span>
         <span><span class="text-green-600">你:</span> {{ userLocation }}</span>
       </div>
-      <div v-else class="text-gray-500">地点待初始化</div>
     </div>
 
     <div
@@ -99,7 +227,7 @@ const liyuanImage = computed(() => {
 
           <div class="rounded border-l-4 border-gray-500/70 bg-black/30 p-2 shadow backdrop-blur-sm">
             <div class="mb-0.5 text-xs font-bold text-gray-300/90">对栗原</div>
-            <div class="text-sm text-white/70">"{{ data.时夏.对栗原 }}"</div>
+            <div class="text-sm text-white/70">"{{ statusData.时夏.对栗原 }}"</div>
           </div>
         </div>
       </div>
@@ -147,7 +275,7 @@ const liyuanImage = computed(() => {
 
           <div class="rounded border-l-4 border-gray-500/70 bg-black/30 p-2 shadow backdrop-blur-sm">
             <div class="mb-0.5 text-xs font-bold text-gray-300/90">对时夏</div>
-            <div class="text-sm text-white/70">"{{ data.栗原.对时夏 }}"</div>
+            <div class="text-sm text-white/70">"{{ statusData.栗原.对时夏 }}"</div>
           </div>
         </div>
       </div>

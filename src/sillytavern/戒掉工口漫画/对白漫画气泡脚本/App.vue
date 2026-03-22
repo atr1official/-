@@ -144,7 +144,7 @@
 
 <script setup lang="ts">
 import { injectStreamingMessageContext } from '@util/streaming';
-import { Schema } from '../schema';
+import { Schema } from '../变量脚本/schema';
 
 type BubbleKind = 'shixia' | 'kurihara' | 'user' | 'other';
 type BubbleSide = 'left' | 'right';
