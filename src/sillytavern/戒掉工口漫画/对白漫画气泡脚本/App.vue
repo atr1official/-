@@ -305,8 +305,9 @@ const statusKuriharaImage = computed(() => {
 });
 
 const blocks = computed<RenderBlock[]>(() => {
-  const renderableMessage = getRenderableMessage(context.message);
-  const lines = renderableMessage.replaceAll('\r\n', '\n').split('\n');
+  const normalizedMessage = normalizeMessage(context.message);
+  const segments = splitMessageSegments(normalizedMessage);
+  const lines = segments.content.replaceAll('\r\n', '\n').split('\n');
   const result: RenderBlock[] = [];
   let narrationBuffer: string[] = [];
 
@@ -336,33 +337,15 @@ const blocks = computed<RenderBlock[]>(() => {
     narrationBuffer = [];
   };
 
+  if (segments.beforeHtml) {
+    result.push({
+      type: 'passthrough',
+      html: segments.beforeHtml,
+    });
+  }
+
   for (let index = 0; index < lines.length; index += 1) {
     const rawLine = lines[index];
-    if (containsStatusPlaceholder(rawLine)) {
-      flushNarration();
-
-      if (!context.during_streaming) {
-        result.push({
-          type: 'status',
-        });
-      }
-
-      continue;
-    }
-
-    const passthroughBlock = collectPassthroughBlock(lines, index);
-    if (passthroughBlock) {
-      flushNarration();
-      result.push({
-        type: 'passthrough',
-        html: context.during_streaming
-          ? fastFormat(passthroughBlock.content)
-          : formatAsDisplayedMessage(passthroughBlock.content, { message_id: context.message_id }),
-      });
-      index = passthroughBlock.nextIndex - 1;
-      continue;
-    }
-
     const parsed = parseDialogueLine(rawLine);
     if (!parsed) {
       narrationBuffer.push(rawLine);
@@ -386,28 +369,81 @@ const blocks = computed<RenderBlock[]>(() => {
   }
 
   flushNarration();
+
+  if (segments.afterHtml) {
+    result.push({
+      type: 'passthrough',
+      html: segments.afterHtml,
+    });
+  }
+
+  if (segments.hasStatus && !context.during_streaming) {
+    result.push({
+      type: 'status',
+    });
+  }
+
   return result;
 });
 
-function getRenderableMessage(message: string): string {
+function normalizeMessage(message: string): string {
   let result = message.replaceAll('\r\n', '\n').trim();
-
   result = stripThinkBlocks(result);
   result = stripLeadingPrelude(result);
-  result = unwrapOuterContentWrappers(result);
+  return result.trim();
+}
 
-  // Keep the status placeholder in the rendered message so Tavern regex replacement
-  // can still inject the status bar UI into the formatted HTML output.
-  result = result.replace(/<status>[\s\S]*?<\/status>/gi, '');
-  result = stripStandaloneWrapperLines(result);
+function splitMessageSegments(message: string): {
+  content: string;
+  beforeHtml: string;
+  afterHtml: string;
+  hasStatus: boolean;
+} {
+  const contentMatches = [...message.matchAll(/<content\b[^>]*>([\s\S]*?)<\/content>/gi)];
+  const hasStatus = containsStatusPlaceholder(message);
 
-  const endMarkers = ['</content>'];
-  const endCandidates = endMarkers.map(marker => result.indexOf(marker)).filter(index => index !== -1);
-  if (endCandidates.length > 0) {
-    result = result.slice(0, Math.min(...endCandidates));
+  if (contentMatches.length === 0) {
+    const cleaned = cleanupOutsideContent(message, hasStatus);
+    return {
+      content: cleaned,
+      beforeHtml: '',
+      afterHtml: '',
+      hasStatus,
+    };
   }
 
-  return result.trim();
+  const firstMatch = contentMatches[0];
+  const lastMatch = contentMatches[contentMatches.length - 1];
+  const firstIndex = firstMatch.index ?? 0;
+  const lastIndex = (lastMatch.index ?? 0) + lastMatch[0].length;
+
+  const content = contentMatches.map(match => match[1].trim()).filter(Boolean).join('\n\n');
+  const before = cleanupOutsideContent(message.slice(0, firstIndex), hasStatus);
+  const after = cleanupOutsideContent(message.slice(lastIndex), hasStatus);
+
+  return {
+    content: stripStandaloneWrapperLines(content),
+    beforeHtml: formatOutsideContent(before),
+    afterHtml: formatOutsideContent(after),
+    hasStatus,
+  };
+}
+
+function cleanupOutsideContent(message: string, hasStatus: boolean): string {
+  let result = message.trim();
+  result = result.replace(/<status>[\s\S]*?<\/status>/gi, '');
+  if (hasStatus) {
+    result = result.replace(/<StatusPlaceHolderImpl\s*\/>/gi, '');
+  }
+  return stripStandaloneWrapperLines(result).trim();
+}
+
+function formatOutsideContent(message: string): string {
+  if (!message) {
+    return '';
+  }
+
+  return context.during_streaming ? message.replace(/\n/g, '<br>') : formatAsDisplayedMessage(message, { message_id: context.message_id });
 }
 
 function stripThinkBlocks(message: string): string {
@@ -462,121 +498,6 @@ function stripStandaloneWrapperLines(message: string): string {
   });
 
   return filtered.join('\n').trim();
-}
-
-function collectPassthroughBlock(lines: string[], startIndex: number): { content: string; nextIndex: number } | null {
-  const firstLine = lines[startIndex];
-  if (!firstLine) {
-    return null;
-  }
-
-  const trimmed = firstLine.trim();
-  if (!trimmed || containsStatusPlaceholder(trimmed) || !trimmed.startsWith('<')) {
-    return null;
-  }
-
-  const selfClosing = trimmed.match(SELF_CLOSING_TAG_RE);
-  if (selfClosing && shouldPassthroughTag(selfClosing[1])) {
-    return { content: firstLine, nextIndex: startIndex + 1 };
-  }
-
-  const singleLine = trimmed.match(SINGLE_LINE_TAG_BLOCK_RE);
-  if (singleLine && shouldPassthroughTag(singleLine[1])) {
-    return { content: firstLine, nextIndex: startIndex + 1 };
-  }
-
-  const leadingTag = trimmed.match(LEADING_TAG_RE);
-  if (leadingTag && shouldPassthroughTag(leadingTag[1])) {
-    const tagName = leadingTag[1].toLowerCase();
-    const collected: string[] = [];
-    let depth = 0;
-
-    for (let index = startIndex; index < lines.length; index += 1) {
-      const line = lines[index];
-      const lineTrimmed = line.trim();
-      collected.push(line);
-      depth += countOpeningTagOccurrences(lineTrimmed, tagName);
-      depth -= countClosingTagOccurrences(lineTrimmed, tagName);
-
-      if (depth <= 0) {
-        return {
-          content: collected.join('\n'),
-          nextIndex: index + 1,
-        };
-      }
-    }
-
-    return {
-      content: collected.join('\n'),
-      nextIndex: lines.length,
-    };
-  }
-
-  const opening = trimmed.match(OPENING_TAG_RE);
-  if (!opening || !shouldPassthroughTag(opening[1])) {
-    return null;
-  }
-
-  const tagName = opening[1].toLowerCase();
-  const collected: string[] = [];
-  let depth = 0;
-
-  for (let index = startIndex; index < lines.length; index += 1) {
-    const line = lines[index];
-    const lineTrimmed = line.trim();
-    collected.push(line);
-
-    if (matchesOpeningTag(lineTrimmed, tagName)) {
-      depth += 1;
-    }
-
-    if (matchesClosingTag(lineTrimmed, tagName)) {
-      depth -= 1;
-      if (depth <= 0) {
-        return {
-          content: collected.join('\n'),
-          nextIndex: index + 1,
-        };
-      }
-    }
-  }
-
-  return {
-    content: collected.join('\n'),
-    nextIndex: lines.length,
-  };
-}
-
-function shouldPassthroughTag(tagName: string): boolean {
-  const normalized = tagName.toLowerCase();
-  return (
-    ALWAYS_PASSTHROUGH_TAGS.has(normalized) ||
-    (normalized !== 'status' && normalized !== 'think' && !CONTENT_WRAPPER_TAGS.has(normalized))
-  );
-}
-
-function matchesOpeningTag(line: string, tagName: string): boolean {
-  const matched = line.match(OPENING_TAG_RE);
-  return matched?.[1].toLowerCase() === tagName;
-}
-
-function matchesClosingTag(line: string, tagName: string): boolean {
-  const matched = line.match(CLOSING_TAG_RE);
-  return matched?.[1].toLowerCase() === tagName;
-}
-
-function countOpeningTagOccurrences(line: string, tagName: string): number {
-  const matches = line.match(new RegExp(`<${escapeRegExp(tagName)}(?:\\s+[^<>]*?)?>`, 'gi'));
-  return matches?.length ?? 0;
-}
-
-function countClosingTagOccurrences(line: string, tagName: string): number {
-  const matches = line.match(new RegExp(`</${escapeRegExp(tagName)}>`, 'gi'));
-  return matches?.length ?? 0;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function containsStatusPlaceholder(line: string): boolean {
