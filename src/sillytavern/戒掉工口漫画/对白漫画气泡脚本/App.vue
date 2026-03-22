@@ -51,12 +51,12 @@
                   <div class="status-card__meter">
                     <div class="status-card__meter-head">
                       <span>爱意隐藏值</span>
-                      <span>{{ statusData.时夏.爱隐藏值 }} / 200</span>
+                      <span>{{ statusShixiaLoveHiddenRate }} / 200</span>
                     </div>
                     <div class="status-card__meter-track status-card__meter-track--shixia">
                       <div
                         class="status-card__meter-fill status-card__meter-fill--shixia"
-                        :style="{ width: `${(statusData.时夏.爱隐藏值 / 200) * 100}%` }"
+                        :style="{ width: `${(statusShixiaLoveHiddenRate / 200) * 100}%` }"
                       ></div>
                     </div>
                   </div>
@@ -100,12 +100,12 @@
                   <div class="status-card__meter">
                     <div class="status-card__meter-head">
                       <span>灰心度</span>
-                      <span>{{ statusData.栗原.灰心度 }} / 200</span>
+                      <span>{{ statusKuriharaDiscouragementRate }} / 200</span>
                     </div>
                     <div class="status-card__meter-track status-card__meter-track--kurihara">
                       <div
                         class="status-card__meter-fill status-card__meter-fill--kurihara"
-                        :style="{ width: `${(statusData.栗原.灰心度 / 200) * 100}%` }"
+                        :style="{ width: `${(statusKuriharaDiscouragementRate / 200) * 100}%` }"
                       ></div>
                     </div>
                   </div>
@@ -277,6 +277,8 @@ const statusUserLocation = computed(() => {
 
 const statusShixiaThoughts = computed(() => statusData.value.时夏['对{{user}}的内心话']);
 const statusKuriharaThoughts = computed(() => statusData.value.栗原['对{{user}}的心理话']);
+const statusShixiaLoveHiddenRate = computed(() => _.clamp(statusData.value.时夏.爱隐藏值, 0, 200));
+const statusKuriharaDiscouragementRate = computed(() => _.clamp(statusData.value.栗原.灰心度, 0, 200));
 
 const statusShixiaImage = computed(() => {
   if (statusData.value['{{user}}的选择'].时夏) {

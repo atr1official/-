@@ -53,21 +53,36 @@ void (async () => {
   await waitGlobalInitialized('Mvu');
 
   eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, (new_variables, old_variables) => {
+    const clampRange = (path) => {
+      const nextValue = Number(_.get(new_variables, `stat_data.${path}`));
+
+      if (!Number.isFinite(nextValue)) return;
+
+      _.set(new_variables, `stat_data.${path}`, _.clamp(nextValue, 0, 200));
+    };
+
     const clampDelta = (path, limit) => {
       const oldValue = Number(_.get(old_variables, `stat_data.${path}`));
       const newValue = Number(_.get(new_variables, `stat_data.${path}`));
 
-      if (!Number.isFinite(oldValue) || !Number.isFinite(newValue)) return;
+      if (!Number.isFinite(newValue)) return;
+
+      if (!Number.isFinite(oldValue)) {
+        _.set(new_variables, `stat_data.${path}`, _.clamp(newValue, 0, 200));
+        return;
+      }
 
       const deltaClampedValue = _.clamp(newValue, oldValue - limit, oldValue + limit);
       _.set(new_variables, `stat_data.${path}`, _.clamp(deltaClampedValue, 0, 200));
     };
 
+    clampRange('时夏.爱隐藏值');
+    clampRange('栗原.灰心度');
     clampDelta('时夏.爱隐藏值', 8);
     clampDelta('栗原.灰心度', 8);
 
-    const oldChoice = _.get(old_variables, 'stat_data.user的选择', {});
-    const newChoice = _.get(new_variables, 'stat_data.user的选择', {});
+    const oldChoice = _.get(old_variables, 'stat_data.{{user}}的选择', {});
+    const newChoice = _.get(new_variables, 'stat_data.{{user}}的选择', {});
     const oldShixia = oldChoice?.时夏 === true;
     const oldLiyuan = oldChoice?.栗原 === true;
     const newShixia = newChoice?.时夏 === true;
@@ -75,15 +90,15 @@ void (async () => {
 
     if (newShixia && newLiyuan) {
       if (oldShixia && !oldLiyuan) {
-        _.set(new_variables, 'stat_data.user的选择.栗原', false);
+        _.set(new_variables, 'stat_data.{{user}}的选择.栗原', false);
       } else if (oldLiyuan && !oldShixia) {
-        _.set(new_variables, 'stat_data.user的选择.时夏', false);
+        _.set(new_variables, 'stat_data.{{user}}的选择.时夏', false);
       } else if (newShixia !== oldShixia && newLiyuan === oldLiyuan) {
-        _.set(new_variables, 'stat_data.user的选择.栗原', false);
+        _.set(new_variables, 'stat_data.{{user}}的选择.栗原', false);
       } else if (newLiyuan !== oldLiyuan && newShixia === oldShixia) {
-        _.set(new_variables, 'stat_data.user的选择.时夏', false);
+        _.set(new_variables, 'stat_data.{{user}}的选择.时夏', false);
       } else {
-        _.set(new_variables, 'stat_data.user的选择', {
+        _.set(new_variables, 'stat_data.{{user}}的选择', {
           时夏: oldShixia,
           栗原: oldLiyuan,
         });

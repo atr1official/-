@@ -13,6 +13,8 @@ const userLocation = computed(() => {
 
 const shixiaInnerThoughts = computed(() => data.value.时夏['对{{user}}的内心话']);
 const liyuanInnerThoughts = computed(() => data.value.栗原['对{{user}}的心理话']);
+const shixiaLoveHiddenRate = computed(() => _.clamp(data.value.时夏.爱隐藏值, 0, 200));
+const liyuanDiscouragementRate = computed(() => _.clamp(data.value.栗原.灰心度, 0, 200));
 
 const shixiaImage = computed(() => {
   if (data.value['{{user}}的选择'].时夏) {
@@ -78,12 +80,12 @@ const liyuanImage = computed(() => {
           <div class="w-1/2 max-w-[200px]">
             <div class="mb-1 flex justify-between text-xs font-bold text-blue-200/90 drop-shadow-md">
               <span>爱意隐藏值</span>
-              <span>{{ data.时夏.爱隐藏值 }} / 200</span>
+              <span>{{ shixiaLoveHiddenRate }} / 200</span>
             </div>
             <div class="h-2 w-full overflow-hidden rounded-full border border-blue-900/50 bg-gray-900/50 shadow-inner">
               <div
                 class="h-full bg-gradient-to-r from-blue-600/80 to-blue-400/80"
-                :style="{ width: `${(data.时夏.爱隐藏值 / 200) * 100}%` }"
+                :style="{ width: `${(shixiaLoveHiddenRate / 200) * 100}%` }"
               ></div>
             </div>
           </div>
@@ -124,14 +126,14 @@ const liyuanImage = computed(() => {
           <div class="w-1/2 max-w-[200px]">
             <div class="mb-1 flex justify-between text-xs font-bold text-yellow-200/90 drop-shadow-md">
               <span>灰心度</span>
-              <span>{{ data.栗原.灰心度 }} / 200</span>
+              <span>{{ liyuanDiscouragementRate }} / 200</span>
             </div>
             <div
               class="h-2 w-full overflow-hidden rounded-full border border-yellow-900/50 bg-gray-900/50 shadow-inner"
             >
               <div
                 class="h-full bg-gradient-to-r from-yellow-600/80 to-yellow-400/80"
-                :style="{ width: `${(data.栗原.灰心度 / 200) * 100}%` }"
+                :style="{ width: `${(liyuanDiscouragementRate / 200) * 100}%` }"
               ></div>
             </div>
           </div>

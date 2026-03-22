@@ -23,11 +23,11 @@ export const Schema = z.object({
         .describe(
           '0-200，初始200=完全隐藏。随剧情递减，越低越藏不住爱。到0时时夏会直接向{{user}}表白，必须让{{user}}做出选择',
         )
-        .transform(e => _.clamp(e, 0, 200))
+        .transform(value => _.clamp(value, 0, 200))
         .prefault(200),
       做爱次数: z.coerce
         .number()
-        .transform(e => Math.max(0, Math.round(e)))
+        .transform(value => Math.max(0, Math.round(value)))
         .prefault(0),
       对栗原: z
         .string()
@@ -43,11 +43,11 @@ export const Schema = z.object({
         .describe(
           '0-200，初始0=完全不灰心。栗原知道时夏和{{user}}曾是要好的朋友，但认定爱要靠自己争取。数值越高越想放弃，到200时会直接向{{user}}表白，必须让{{user}}做出选择',
         )
-        .transform(e => _.clamp(e, 0, 200))
+        .transform(value => _.clamp(value, 0, 200))
         .prefault(0),
       做爱次数: z.coerce
         .number()
-        .transform(e => Math.max(0, Math.round(e)))
+        .transform(value => Math.max(0, Math.round(value)))
         .prefault(0),
       对时夏: z
         .string()
