@@ -45,13 +45,60 @@ export function mountStreamingMessages(
     filter?: (message_id: number, message: string) => boolean;
     prefix?: string;
     keep_last_n?: number;
+    show_original_message_while_editing?: boolean;
   } = {},
 ): { unmount: () => void } {
-  const { host = 'iframe', filter, prefix = uuidv4(), keep_last_n } = options;
+  const {
+    host = 'iframe',
+    filter,
+    prefix = uuidv4(),
+    keep_last_n,
+    show_original_message_while_editing = true,
+  } = options;
 
   const states: Map<number, { app: App; data: Reactive<StreamingMessageContext>; destroy: () => void }> = new Map();
+  const rerender_timers: Map<number, number[]> = new Map();
   let has_stoped = false;
 
+  const clearRerenderTimers = (message_id: number) => {
+    rerender_timers.get(message_id)?.forEach(timer => clearTimeout(timer));
+    rerender_timers.delete(message_id);
+  };
+
+  const setEditingView = ($message_element: JQuery<HTMLElement>, prefix: string, message_id: number, showOriginal: boolean) => {
+    const $mes_text = $message_element.find('.mes_text');
+    const $host = $message_element.find(`#${prefix}-${message_id}`);
+
+    if (showOriginal) {
+      $mes_text.removeClass('hidden!');
+      $mes_text.children().removeClass('hidden!');
+    } else {
+      $mes_text.removeClass('hidden!');
+      $mes_text.children().not('#curEditTextarea').addClass('hidden!');
+    }
+
+    $message_element.find('.TH-streaming').addClass('hidden!');
+    $host.addClass('hidden!');
+  };
+
+  const setRenderedView = ($message_element: JQuery<HTMLElement>, $mes_text: JQuery<HTMLElement>, $host: JQuery<HTMLElement>) => {
+    $mes_text.children().removeClass('hidden!');
+    $mes_text.addClass('hidden!');
+    $message_element.find('.TH-streaming').addClass('hidden!');
+    $host.removeClass('hidden!');
+  };
+
+  const scheduleDelayedRerenders = (message_id: number) => {
+    clearRerenderTimers(message_id);
+    const timers = [250, 1000].map(delay =>
+      window.setTimeout(() => {
+        if (!has_stoped) {
+          renderOneMessage(message_id);
+        }
+      }, delay),
+    );
+    rerender_timers.set(message_id, timers);
+  };
   const destroyIfInvalid = (message_id: number): boolean => {
     const min_message_id = Number($('#chat > .mes').first().attr('mesid'));
     if (!_.inRange(message_id, min_message_id, SillyTavern.chat.length)) {
@@ -99,6 +146,11 @@ export function mountStreamingMessages(
     }
 
     const $message_element = $(`.mes[mesid='${message_id}']`);
+    const isEditing = $message_element.find('#curEditTextarea').length > 0;
+    if (isEditing) {
+      setEditingView($message_element, prefix, message_id, show_original_message_while_editing);
+      return;
+    }
 
     const $mes_text = $message_element.find('.mes_text').addClass('hidden!');
     $message_element.find('.TH-streaming').addClass('hidden!');
@@ -150,24 +202,26 @@ export function mountStreamingMessages(
       app.mount($host[0]);
     }
 
-    const observer = new MutationObserver(() => {
-      const $edit_textarea = $('#chat').find('#curEditTextarea');
-      if ($edit_textarea.parent().is($mes_text)) {
-        $mes_text.removeClass('hidden!');
-        $host.addClass('hidden!');
-      } else if ($edit_textarea.length === 0) {
-        $mes_text.addClass('hidden!');
-        $message_element.find('.TH-streaming').addClass('hidden!');
-        $host.removeClass('hidden!');
+    const syncEditState = () => {
+      const isEditing = $message_element.find('#curEditTextarea').length > 0;
+      if (isEditing) {
+        setEditingView($message_element, prefix, message_id, show_original_message_while_editing);
+      } else {
+        setRenderedView($message_element, $mes_text, $host);
       }
-    });
-    observer.observe($mes_text[0] as HTMLElement, { childList: true });
+    };
+
+    const observer = new MutationObserver(syncEditState);
+    observer.observe($message_element[0] as HTMLElement, { childList: true, subtree: true });
+    syncEditState();
 
     states.set(message_id, {
       app,
       data,
       destroy: () => {
+        clearRerenderTimers(message_id);
         $message_element.find('.TH-streaming').removeClass('hidden!');
+        $mes_text.children().removeClass('hidden!');
         $mes_text.removeClass('hidden!');
 
         app.unmount();
@@ -219,6 +273,7 @@ export function mountStreamingMessages(
     message_id => {
       destroyAllInvalid();
       renderOneMessage(message_id);
+      scheduleDelayedRerenders(message_id);
     },
     true,
   );
@@ -227,6 +282,9 @@ export function mountStreamingMessages(
       destroyAllInvalid();
       states.get(message_id)?.destroy();
       renderOneMessage(message_id);
+      if (event === tavern_events.MESSAGE_EDITED) {
+        scheduleDelayedRerenders(message_id);
+      }
     }),
   );
   [tavern_events.MORE_MESSAGES_LOADED, tavern_events.MESSAGE_DELETED].forEach(event =>
@@ -245,6 +303,7 @@ export function mountStreamingMessages(
     unmount: () => {
       $('#chat').find('.TH-streaming').removeClass('hidden!');
       $('#chat').find('.mes_text').removeClass('hidden!');
+      rerender_timers.forEach((_, message_id) => clearRerenderTimers(message_id));
       states.forEach(({ destroy }) => destroy());
       stop_list.forEach(stop => stop());
       has_stoped = true;

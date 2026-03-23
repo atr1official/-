@@ -1,0 +1,16 @@
+<%_
+if (typeof shixiaLove === 'undefined') var shixiaLove = getvar('stat_data.时夏.爱隐藏值', { defaults: 200 });
+if (typeof lilyuanGray === 'undefined') var lilyuanGray = getvar('stat_data.栗原.灰心度', { defaults: 0 });
+if (typeof choseShixia === 'undefined') var choseShixia = getvar('stat_data.{{user}}的选择.时夏', { defaults: false });
+if (typeof choseLiyuan === 'undefined') var choseLiyuan = getvar('stat_data.{{user}}的选择.栗原', { defaults: false });
+_%>
+
+<%_ if (choseShixia === true) { _%>
+<%- await getwi(null, '选择时夏') %>
+<%_ } else if (choseLiyuan === true) { _%>
+<%- await getwi(null, '选择栗原') %>
+<%_ } else if (shixiaLove <= 0) { _%>
+<%- await getwi(null, '时夏表白') %>
+<%_ } else if (lilyuanGray >= 200) { _%>
+<%- await getwi(null, '栗原表白') %>
+<%_ } _%>
