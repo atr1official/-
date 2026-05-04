@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿import { FSWatcher, watch } from 'chokidar';
+=======
+import { FSWatcher, watch } from 'chokidar';
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
 import HtmlInlineScriptWebpackPlugin from 'html-inline-script-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import _ from 'lodash';
@@ -7,7 +11,10 @@ import { ChildProcess, exec, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+<<<<<<< HEAD
 import { fileURLToPath } from 'node:url';
+=======
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
 import RemarkHTML from 'remark-html';
 import { Server } from 'socket.io';
 import TerserPlugin from 'terser-webpack-plugin';
@@ -20,7 +27,10 @@ import webpack from 'webpack';
 import WebpackObfuscator from 'webpack-obfuscator';
 const require = createRequire(import.meta.url);
 const HTMLInlineCSSWebpackPlugin = require('html-inline-css-webpack-plugin').default;
+<<<<<<< HEAD
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+=======
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
 
 interface Config {
   port: number;
@@ -52,6 +62,7 @@ function common_path(lhs: string, rhs: string) {
 
 function glob_script_files() {
   const results: string[] = [];
+<<<<<<< HEAD
   const script_pattern = /[\\/]index\.(ts|tsx|js|jsx)$/;
   const roots = ['绀轰緥', 'src'];
   const files: string[] = [];
@@ -78,6 +89,14 @@ function glob_script_files() {
       (file: string) => process.env.CI !== 'true' || !fs.readFileSync(path.join(__dirname, file)).includes('@no-ci'),
     )
     .forEach((file: string) => {
+=======
+
+  fs.globSync(`{示例,src}/**/index.{ts,tsx,js,jsx}`)
+    .filter(
+      file => process.env.CI !== 'true' || !fs.readFileSync(path.join(import.meta.dirname, file)).includes('@no-ci'),
+    )
+    .forEach(file => {
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
       const file_dirname = path.dirname(file);
       for (const [index, result] of results.entries()) {
         const result_dirname = path.dirname(result);
@@ -95,6 +114,10 @@ function glob_script_files() {
 
   return results;
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
 const config: Config = {
   port: 6621,
   entries: glob_script_files().map(parse_entry),
@@ -106,18 +129,31 @@ function watch_tavern_helper(compiler: webpack.Compiler) {
     if (!io) {
       const port = config.port ?? 6621;
       io = new Server(port, { cors: { origin: '*' } });
+<<<<<<< HEAD
       console.info('\x1b[36m[tavern_helper]\x1b[0m started watch server');
       io.on('connect', socket => {
         console.info(`\x1b[36m[tavern_helper]\x1b[0m connected '${socket.id}', initialize push`);
         io.emit('iframe_updated');
         socket.on('disconnect', reason => {
           console.info(`\x1b[36m[tavern_helper]\x1b[0m disconnected '${socket.id}': ${reason}`);
+=======
+      console.info(`\x1b[36m[tavern_helper]\x1b[0m 已启动酒馆监听服务`);
+      io.on('connect', socket => {
+        console.info(`\x1b[36m[tavern_helper]\x1b[0m 成功连接到酒馆网页 '${socket.id}', 初始化推送...`);
+        io.emit('iframe_updated');
+        socket.on('disconnect', reason => {
+          console.info(`\x1b[36m[tavern_helper]\x1b[0m 与酒馆网页 '${socket.id}' 断开连接: ${reason}`);
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
         });
       });
     }
 
     compiler.hooks.done.tap('watch_tavern_helper', () => {
+<<<<<<< HEAD
       console.info('\n\x1b[36m[tavern_helper]\x1b[0m 妫€娴嬪埌瀹屾垚缂栬瘧, 鎺ㄩ€佹洿鏂颁簨浠?..');
+=======
+      console.info('\n\x1b[36m[tavern_helper]\x1b[0m 检测到完成编译, 推送更新事件...');
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
       if (compiler.options.plugins.some(plugin => plugin instanceof HtmlWebpackPlugin)) {
         io.emit('message_iframe_updated');
       } else {
@@ -129,8 +165,13 @@ function watch_tavern_helper(compiler: webpack.Compiler) {
 
 let watcher: FSWatcher;
 const dump = () => {
+<<<<<<< HEAD
   exec('pnpm dump', { cwd: __dirname });
   console.info('\x1b[36m[schema_dump]\x1b[0m 宸插皢鎵€鏈?schema.ts 杞崲涓?schema.json');
+=======
+  exec('pnpm dump', { cwd: import.meta.dirname });
+  console.info('\x1b[36m[schema_dump]\x1b[0m 已将所有 schema.ts 转换为 schema.json');
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
 };
 const dump_debounced = _.debounce(dump, 500, { leading: true, trailing: false });
 function schema_dump(compiler: webpack.Compiler) {
@@ -151,8 +192,13 @@ function schema_dump(compiler: webpack.Compiler) {
 
 let child_process: ChildProcess;
 const bundle = () => {
+<<<<<<< HEAD
   exec('pnpm sync bundle all', { cwd: __dirname });
   console.info('\x1b[36m[tavern_sync]\x1b[0m 宸叉墦鍖呮墍鏈夐厤缃簡鐨勮鑹插崱/涓栫晫涔?棰勮');
+=======
+  exec('pnpm sync bundle all', { cwd: import.meta.dirname });
+  console.info('\x1b[36m[tavern_sync]\x1b[0m 已打包所有配置了的角色卡/世界书/预设');
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
 };
 const bundle_debounced = _.debounce(bundle, 500, { leading: true, trailing: false });
 function tavern_sync(compiler: webpack.Compiler) {
@@ -165,7 +211,11 @@ function tavern_sync(compiler: webpack.Compiler) {
       child_process = spawn('pnpm', ['sync', 'watch', 'all', '-f'], {
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe'],
+<<<<<<< HEAD
         cwd: __dirname,
+=======
+        cwd: import.meta.dirname,
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
         env: { ...process.env, FORCE_COLOR: '1' },
       });
       child_process.stdout?.on('data', (data: Buffer) => {
@@ -205,6 +255,7 @@ function tavern_sync(compiler: webpack.Compiler) {
 
 function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Configuration {
   const should_obfuscate = fs
+<<<<<<< HEAD
     .readFileSync(path.join(__dirname, entry.script), 'utf-8')
     .includes('@obfuscate');
   const script_filepath = path.parse(entry.script);
@@ -213,12 +264,25 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
   return (_env, argv) => ({
     experiments: {
       outputModule: !isClassicHtmlEntry,
+=======
+    .readFileSync(path.join(import.meta.dirname, entry.script), 'utf-8')
+    .includes('@obfuscate');
+  const script_filepath = path.parse(entry.script);
+
+  return (_env, argv) => ({
+    experiments: {
+      outputModule: true,
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
     },
     devtool: argv.mode === 'production' ? 'source-map' : 'eval-source-map',
     watchOptions: {
       ignored: ['**/dist', '**/node_modules'],
     },
+<<<<<<< HEAD
     entry: path.join(__dirname, entry.script),
+=======
+    entry: path.join(import.meta.dirname, entry.script),
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
     target: 'browserslist',
     output: {
       devtoolNamespace: 'tavern_helper_template',
@@ -234,17 +298,27 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       },
       filename: `${script_filepath.name}.js`,
       path: path.join(
+<<<<<<< HEAD
         __dirname,
         'dist',
         path.relative(__dirname, script_filepath.dir).replace(/^[^\\/]+[\\/]/, ''),
+=======
+        import.meta.dirname,
+        'dist',
+        path.relative(import.meta.dirname, script_filepath.dir).replace(/^[^\\/]+[\\/]/, ''),
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
       ),
       chunkFilename: `${script_filepath.name}.[contenthash].chunk.js`,
       asyncChunks: true,
       clean: true,
       publicPath: '',
+<<<<<<< HEAD
       library: isClassicHtmlEntry
         ? undefined
         : {
+=======
+      library: {
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
             type: 'module',
           },
     },
@@ -437,7 +511,11 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       plugins: [
         new TsconfigPathsPlugin({
           extensions: ['.ts', '.js', '.tsx', '.jsx'],
+<<<<<<< HEAD
           configFile: path.join(__dirname, 'tsconfig.json'),
+=======
+          configFile: path.join(import.meta.dirname, 'tsconfig.json'),
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
         }),
       ],
       alias: {},
@@ -446,9 +524,15 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       ? [new MiniCssExtractPlugin()]
       : [
           new HtmlWebpackPlugin({
+<<<<<<< HEAD
             template: path.join(__dirname, entry.html),
             filename: path.parse(entry.html).base,
             scriptLoading: isClassicHtmlEntry ? 'blocking' : 'module',
+=======
+            template: path.join(import.meta.dirname, entry.html),
+            filename: path.parse(entry.html).base,
+            scriptLoading: 'module',
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
             cache: false,
           }),
           new HtmlInlineScriptWebpackPlugin(),
@@ -568,10 +652,13 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       ) {
         return callback();
       }
+<<<<<<< HEAD
 
       if (isClassicHtmlEntry) {
         return callback();
       }
+=======
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
       const global = {
         jquery: '$',
         lodash: '_',
@@ -597,7 +684,10 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
 }
 
 export default config.entries.map(parse_configuration);
+<<<<<<< HEAD
 
 
 
 
+=======
+>>>>>>> 83d9038af3d5ad60dd9744400c8b94779c47044e
